@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Receipt, Users, LineChart } from 'lucide-react';
 import { clsx } from 'clsx';

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { ArrowUpCircle, ArrowDownCircle, CheckCircle, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -19,8 +19,6 @@ interface CategoriaResumo {
   totalEntradas: number;
   totalSaidas: number;
 }
-
-const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f43f5e', '#f59e0b'];
 
 const Dashboard = () => {
   const [resumo, setResumo] = useState<Resumo | null>(null);
@@ -166,7 +164,7 @@ const Dashboard = () => {
                   dataKey="value"
                   stroke="none"
                 >
-                  {pieData.map((entry, index) => (
+                  {pieData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={DASHBOARD_COLORS[index % DASHBOARD_COLORS.length]} />
                   ))}
                 </Pie>

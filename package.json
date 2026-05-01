@@ -1,0 +1,13 @@
+{
+  "name": "erp-project",
+  "version": "1.0.0",
+  "scripts": {
+    "backend": "cd backend && mvn spring-boot:run",
+    "frontend": "cd frontend && npm run dev",
+    "install-all": "cd frontend && npm install",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -45,37 +45,43 @@ Antes de começar, você vai precisar ter instalado em sua máquina:
 ## ⚙️ Configuração do Banco de Dados
 
 1. Abra o seu terminal do PostgreSQL (psql) ou utilize uma ferramenta como pgAdmin/DBeaver.
-2. Crie um novo banco de dados chamado `financeiro`:
+2. Crie um novo banco de dados chamado `financeiro_db`:
    ```sql
-   CREATE DATABASE financeiro;
+   CREATE DATABASE financeiro_db;
    ```
 3. O projeto está configurado para conectar ao PostgreSQL com as seguintes credenciais padrão (ajuste em `backend/src/main/resources/application.properties` se necessário):
-   - **URL:** `jdbc:postgresql://localhost:5432/financeiro`
+   - **URL:** `jdbc:postgresql://localhost:5432/financeiro_db`
    - **Username:** `postgres`
-   - **Password:** `admin` (ou sua senha local)
+   - **Password:** `postgres` (ou sua senha local)
 
 ---
 
 ## 🏃‍♂️ Como Rodar o Projeto
 
-### 1. Backend (API)
-Abra um terminal na pasta raiz e execute:
+### Opção 1: Usando o comando unificado (Recomendado)
+Na pasta raiz do projeto, execute:
 ```bash
-cd backend
+npm install
+npm run dev
+```
+Isso iniciará tanto o Backend (8080) quanto o Frontend (5173) simultaneamente.
+
+### Opção 2: Manualmente
+
+#### 1. Backend (API)
+Abra um terminal na pasta `backend` e execute:
+```bash
 mvn spring-boot:run
 ```
 O servidor iniciará na porta **8080**.
-Acesse: `http://localhost:8080`
 
-### 2. Frontend (Interface)
-Abra outro terminal na pasta raiz e execute:
+#### 2. Frontend (Interface)
+Abra outro terminal na pasta `frontend` e execute:
 ```bash
-cd frontend
 npm install
 npm run dev
 ```
 O servidor iniciará na porta **5173**.
-Acesse: [http://localhost:5173](http://localhost:5173)
 
 ---
 

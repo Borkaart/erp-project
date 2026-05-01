@@ -4,11 +4,10 @@
             "type": "java",
             "name": "Spring Boot-FinanceiroApplication<app>",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/backend",
             "mainClass": "com.financeiro.app.FinanceiroApplication",
             "projectName": "app",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env"
+            "args": ""
         }
     ]
 }

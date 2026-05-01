@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, Filter, CheckCircle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -16,7 +16,7 @@ const formatDate = (dateString: string) => {
 
 interface Conta {
   id: number;
-  tipo: 'RECEBER' | 'PAGAR';
+  tipo: 'RECEBER' | 'PAGAR' | 'RECEITA' | 'DESPESA';
   descricao: string;
   categoria: string;
   pessoa: string;
@@ -40,7 +40,7 @@ const Contas = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const initialForm = {
-    tipo: 'RECEBER' as 'RECEBER' | 'PAGAR',
+    tipo: 'RECEBER' as 'RECEBER' | 'PAGAR' | 'RECEITA' | 'DESPESA',
     descricao: '',
     categoria: '',
     pessoa: '',
