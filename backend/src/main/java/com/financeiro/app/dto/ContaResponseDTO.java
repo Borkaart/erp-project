@@ -15,12 +15,12 @@ public class ContaResponseDTO {
     private String pessoa;
     private LocalDate dataCriacao;
     private LocalDate dataVencimento;
-    private LocalDate dataPagamentoRecebimento;
-    private LocalDate dataPrevistaRecebimento;
-    private BigDecimal valor;
-    private String formaPagamento;
+    private BigDecimal valorTotal;
+    private BigDecimal valorPago;
+    private BigDecimal saldoRestante;
     private StatusConta status;
     private String observacoes;
+    private Long grupoId;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -46,21 +46,21 @@ public class ContaResponseDTO {
     public LocalDate getDataVencimento() { return dataVencimento; }
     public void setDataVencimento(LocalDate dataVencimento) { this.dataVencimento = dataVencimento; }
 
-    public LocalDate getDataPagamentoRecebimento() { return dataPagamentoRecebimento; }
-    public void setDataPagamentoRecebimento(LocalDate dataPagamentoRecebimento) { this.dataPagamentoRecebimento = dataPagamentoRecebimento; }
+    public BigDecimal getValorTotal() { return valorTotal; }
+    public void setValorTotal(BigDecimal valorTotal) { this.valorTotal = valorTotal; }
 
-    public LocalDate getDataPrevistaRecebimento() { return dataPrevistaRecebimento; }
-    public void setDataPrevistaRecebimento(LocalDate dataPrevistaRecebimento) { this.dataPrevistaRecebimento = dataPrevistaRecebimento; }
+    public BigDecimal getValorPago() { return valorPago; }
+    public void setValorPago(BigDecimal valorPago) { this.valorPago = valorPago; }
 
-    public BigDecimal getValor() { return valor; }
-    public void setValor(BigDecimal valor) { this.valor = valor; }
-
-    public String getFormaPagamento() { return formaPagamento; }
-    public void setFormaPagamento(String formaPagamento) { this.formaPagamento = formaPagamento; }
+    public BigDecimal getSaldoRestante() { return saldoRestante; }
+    public void setSaldoRestante(BigDecimal saldoRestante) { this.saldoRestante = saldoRestante; }
 
     public StatusConta getStatus() { return status; }
     public void setStatus(StatusConta status) { this.status = status; }
 
     public String getObservacoes() { return observacoes; }
     public void setObservacoes(String observacoes) { this.observacoes = observacoes; }
+
+    public Long getGrupoId() { return grupoId; }
+    public void setGrupoId(Long grupoId) { this.grupoId = grupoId; }
 }

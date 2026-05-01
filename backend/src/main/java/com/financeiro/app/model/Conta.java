@@ -5,6 +5,8 @@ import com.financeiro.app.enums.TipoConta;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "contas")
@@ -14,14 +16,32 @@ public class Conta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TipoConta tipo;
-
     @Column(nullable = false)
     private String descricao;
 
     @Column(nullable = false)
+    private BigDecimal valorTotal;
+
+    @Column(nullable = false)
+    private LocalDate dataVencimento;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TipoConta tipo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusConta status;
+
+    @Column(nullable = false)
+    private BigDecimal valorPago = BigDecimal.ZERO;
+
+    @Column(nullable = false)
+    private BigDecimal saldoRestante;
+
+    @Column(nullable = false)
+    private LocalDate dataCriacao;
+
     private String categoria;
 
     @ManyToOne(optional = true)
@@ -30,27 +50,12 @@ public class Conta {
 
     private String pessoa;
 
-    @Column(nullable = false)
-    private LocalDate dataCriacao;
-
-    @Column(nullable = false)
-    private LocalDate dataVencimento;
-
-    private LocalDate dataPagamentoRecebimento;
-
-    private LocalDate dataPrevistaRecebimento;
-
-    @Column(nullable = false)
-    private BigDecimal valor;
-
-    @Column(nullable = false)
-    private String formaPagamento;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private StatusConta status;
-
     private String observacoes;
+
+    private Long grupoId; // Para agrupamento de parcelas
+
+    @OneToMany(mappedBy = "conta", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Baixa> baixas = new ArrayList<>();
 
     public Conta() {
     }
@@ -58,11 +63,35 @@ public class Conta {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
+    public String getDescricao() { return descricao; }
+    public void setDescricao(String descricao) { this.descricao = descricao; }
+
+    public BigDecimal getValorTotal() { return valorTotal; }
+    public void setValorTotal(BigDecimal valorTotal) { 
+        this.valorTotal = valorTotal;
+        this.atualizarSaldo();
+    }
+
+    public LocalDate getDataVencimento() { return dataVencimento; }
+    public void setDataVencimento(LocalDate dataVencimento) { this.dataVencimento = dataVencimento; }
+
     public TipoConta getTipo() { return tipo; }
     public void setTipo(TipoConta tipo) { this.tipo = tipo; }
 
-    public String getDescricao() { return descricao; }
-    public void setDescricao(String descricao) { this.descricao = descricao; }
+    public StatusConta getStatus() { return status; }
+    public void setStatus(StatusConta status) { this.status = status; }
+
+    public BigDecimal getValorPago() { return valorPago; }
+    public void setValorPago(BigDecimal valorPago) { 
+        this.valorPago = valorPago; 
+        this.atualizarSaldo();
+    }
+
+    public BigDecimal getSaldoRestante() { return saldoRestante; }
+    public void setSaldoRestante(BigDecimal saldoRestante) { this.saldoRestante = saldoRestante; }
+
+    public LocalDate getDataCriacao() { return dataCriacao; }
+    public void setDataCriacao(LocalDate dataCriacao) { this.dataCriacao = dataCriacao; }
 
     public String getCategoria() { return categoria; }
     public void setCategoria(String categoria) { this.categoria = categoria; }
@@ -73,27 +102,18 @@ public class Conta {
     public String getPessoa() { return pessoa; }
     public void setPessoa(String pessoa) { this.pessoa = pessoa; }
 
-    public LocalDate getDataCriacao() { return dataCriacao; }
-    public void setDataCriacao(LocalDate dataCriacao) { this.dataCriacao = dataCriacao; }
-
-    public LocalDate getDataVencimento() { return dataVencimento; }
-    public void setDataVencimento(LocalDate dataVencimento) { this.dataVencimento = dataVencimento; }
-
-    public LocalDate getDataPagamentoRecebimento() { return dataPagamentoRecebimento; }
-    public void setDataPagamentoRecebimento(LocalDate dataPagamentoRecebimento) { this.dataPagamentoRecebimento = dataPagamentoRecebimento; }
-
-    public LocalDate getDataPrevistaRecebimento() { return dataPrevistaRecebimento; }
-    public void setDataPrevistaRecebimento(LocalDate dataPrevistaRecebimento) { this.dataPrevistaRecebimento = dataPrevistaRecebimento; }
-
-    public BigDecimal getValor() { return valor; }
-    public void setValor(BigDecimal valor) { this.valor = valor; }
-
-    public String getFormaPagamento() { return formaPagamento; }
-    public void setFormaPagamento(String formaPagamento) { this.formaPagamento = formaPagamento; }
-
-    public StatusConta getStatus() { return status; }
-    public void setStatus(StatusConta status) { this.status = status; }
-
     public String getObservacoes() { return observacoes; }
     public void setObservacoes(String observacoes) { this.observacoes = observacoes; }
+
+    public Long getGrupoId() { return grupoId; }
+    public void setGrupoId(Long grupoId) { this.grupoId = grupoId; }
+
+    public List<Baixa> getBaixas() { return baixas; }
+    public void setBaixas(List<Baixa> baixas) { this.baixas = baixas; }
+
+    public void atualizarSaldo() {
+        if (this.valorTotal != null) {
+            this.saldoRestante = this.valorTotal.subtract(this.valorPago != null ? this.valorPago : BigDecimal.ZERO);
+        }
+    }
 }

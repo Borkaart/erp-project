@@ -23,7 +23,7 @@ public class ContaController {
     }
 
     @PostMapping
-    public ResponseEntity<ContaResponseDTO> criar(@Valid @RequestBody ContaRequestDTO dto) {
+    public ResponseEntity<List<ContaResponseDTO>> criar(@Valid @RequestBody ContaRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.criar(dto));
     }
 
@@ -57,27 +57,12 @@ public class ContaController {
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/pagar-receber")
-    public ResponseEntity<ContaResponseDTO> pagarReceber(
+    @PostMapping("/{id}/baixas")
+    public ResponseEntity<Void> realizarBaixa(
             @PathVariable Long id, 
-            @RequestParam(required = false) String data) {
-        return ResponseEntity.ok(service.pagarReceber(id, data));
-    }
-
-    @PutMapping("/{id}/pagar")
-    public ResponseEntity<ContaResponseDTO> pagar(
-            @PathVariable Long id, 
-            @RequestBody(required = false) PagamentoRecebimentoRequestDTO request) {
-        LocalDate data = (request != null) ? request.getData() : null;
-        return ResponseEntity.ok(service.registrarPagamento(id, data));
-    }
-
-    @PutMapping("/{id}/receber")
-    public ResponseEntity<ContaResponseDTO> receber(
-            @PathVariable Long id, 
-            @RequestBody(required = false) PagamentoRecebimentoRequestDTO request) {
-        LocalDate data = (request != null) ? request.getData() : null;
-        return ResponseEntity.ok(service.registrarRecebimento(id, data));
+            @Valid @RequestBody BaixaRequestDTO dto) {
+        service.realizarBaixa(id, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @GetMapping("/alertas")

@@ -15,7 +15,6 @@ public class ContaRequestDTO {
     @NotBlank(message = "A descrição é obrigatória")
     private String descricao;
 
-    @NotBlank(message = "A categoria é obrigatória")
     private String categoria;
 
     private Long clienteId;
@@ -25,20 +24,12 @@ public class ContaRequestDTO {
     @NotNull(message = "A data de vencimento é obrigatória")
     private LocalDate dataVencimento;
 
-    private LocalDate dataPagamentoRecebimento;
-
-    private LocalDate dataPrevistaRecebimento;
-
-    @NotNull(message = "O valor é obrigatório")
-    private BigDecimal valor;
-
-    @NotBlank(message = "A forma de pagamento é obrigatória")
-    private String formaPagamento;
-
-    @NotNull(message = "O status da conta é obrigatório")
-    private StatusConta status;
+    @NotNull(message = "O valor total é obrigatório")
+    private BigDecimal valorTotal;
 
     private String observacoes;
+
+    private Integer quantidadeParcelas; // Se null ou 1, conta única. Se > 1, gera parcelas.
 
     public TipoConta getTipo() { return tipo; }
     public void setTipo(TipoConta tipo) { this.tipo = tipo; }
@@ -58,21 +49,12 @@ public class ContaRequestDTO {
     public LocalDate getDataVencimento() { return dataVencimento; }
     public void setDataVencimento(LocalDate dataVencimento) { this.dataVencimento = dataVencimento; }
 
-    public LocalDate getDataPagamentoRecebimento() { return dataPagamentoRecebimento; }
-    public void setDataPagamentoRecebimento(LocalDate dataPagamentoRecebimento) { this.dataPagamentoRecebimento = dataPagamentoRecebimento; }
-
-    public LocalDate getDataPrevistaRecebimento() { return dataPrevistaRecebimento; }
-    public void setDataPrevistaRecebimento(LocalDate dataPrevistaRecebimento) { this.dataPrevistaRecebimento = dataPrevistaRecebimento; }
-
-    public BigDecimal getValor() { return valor; }
-    public void setValor(BigDecimal valor) { this.valor = valor; }
-
-    public String getFormaPagamento() { return formaPagamento; }
-    public void setFormaPagamento(String formaPagamento) { this.formaPagamento = formaPagamento; }
-
-    public StatusConta getStatus() { return status; }
-    public void setStatus(StatusConta status) { this.status = status; }
+    public BigDecimal getValorTotal() { return valorTotal; }
+    public void setValorTotal(BigDecimal valorTotal) { this.valorTotal = valorTotal; }
 
     public String getObservacoes() { return observacoes; }
     public void setObservacoes(String observacoes) { this.observacoes = observacoes; }
+
+    public Integer getQuantidadeParcelas() { return quantidadeParcelas; }
+    public void setQuantidadeParcelas(Integer quantidadeParcelas) { this.quantidadeParcelas = quantidadeParcelas; }
 }

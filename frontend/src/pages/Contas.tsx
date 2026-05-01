@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, Filter, CheckCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Filter, CheckCircle, CreditCard } from 'lucide-react';
 import { api } from '../services/api';
 
-// Usaremos fallback caso date-fns não seja instalado manualmente depois
 const formatDate = (dateString: string) => {
   if (!dateString) return '';
   try {
@@ -16,18 +15,18 @@ const formatDate = (dateString: string) => {
 
 interface Conta {
   id: number;
-  tipo: 'RECEBER' | 'PAGAR' | 'RECEITA' | 'DESPESA';
+  tipo: 'RECEITA' | 'DESPESA';
   descricao: string;
   categoria: string;
   pessoa: string;
   dataCriacao: string;
   dataVencimento: string;
-  dataPagamentoRecebimento: string;
-  dataPrevistaRecebimento?: string;
-  valor: number;
-  formaPagamento: string;
-  status: 'PENDENTE' | 'PAGO' | 'RECEBIDO' | 'VENCIDO' | 'CANCELADO';
+  valorTotal: number;
+  valorPago: number;
+  saldoRestante: number;
+  status: 'PENDENTE' | 'PARCIAL' | 'PAGO' | 'VENCIDO';
   observacoes: string;
+  grupoId?: number;
 }
 
 const Contas = () => {
@@ -37,22 +36,29 @@ const Contas = () => {
   const [filterTipo, setFilterTipo] = useState('TODOS');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBaixaModalOpen, setIsBaixaModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [selectedConta, setSelectedConta] = useState<Conta | null>(null);
 
   const initialForm = {
-    tipo: 'RECEBER' as 'RECEBER' | 'PAGAR' | 'RECEITA' | 'DESPESA',
+    tipo: 'RECEITA' as 'RECEITA' | 'DESPESA',
     descricao: '',
     categoria: '',
     pessoa: '',
     dataVencimento: '',
-    dataPrevistaRecebimento: '',
+    valorTotal: 0,
+    observacoes: '',
+    quantidadeParcelas: 1
+  };
+
+  const initialBaixaForm = {
     valor: 0,
-    formaPagamento: 'PIX',
-    status: 'PENDENTE',
-    observacoes: ''
+    dataPagamento: new Date().toISOString().split('T')[0],
+    formaPagamento: 'PIX'
   };
 
   const [formData, setFormData] = useState(initialForm);
+  const [baixaFormData, setBaixaFormData] = useState(initialBaixaForm);
 
   const fetchContas = async () => {
     setLoading(true);
@@ -79,11 +85,9 @@ const Contas = () => {
         categoria: conta.categoria,
         pessoa: conta.pessoa,
         dataVencimento: conta.dataVencimento,
-        dataPrevistaRecebimento: conta.dataPrevistaRecebimento || '',
-        valor: conta.valor,
-        formaPagamento: conta.formaPagamento,
-        status: conta.status,
-        observacoes: conta.observacoes || ''
+        valorTotal: conta.valorTotal,
+        observacoes: conta.observacoes || '',
+        quantidadeParcelas: 1
       });
     } else {
       setEditingId(null);
@@ -92,40 +96,37 @@ const Contas = () => {
     setIsModalOpen(true);
   };
 
-  const handlePagarReceberRapido = async (conta: any) => {
-    const isReceita = conta.tipo === 'RECEBER' || conta.tipo === 'RECEITA';
-    const action = isReceita ? 'receber' : 'pagar';
-    const confirmMsg = `Deseja confirmar o ${isReceita ? 'recebimento' : 'pagamento'} de "${conta.descricao}"?\n\nClique em OK para usar a data de HOJE ou digite uma data manual (AAAA-MM-DD):`;
-    
-    let manualDate = prompt(confirmMsg, '');
-    
-    if (manualDate === null) return; // Cancelou o prompt
+  const handleOpenBaixaModal = (conta: Conta) => {
+    setSelectedConta(conta);
+    setBaixaFormData({
+      ...initialBaixaForm,
+      valor: conta.saldoRestante
+    });
+    setIsBaixaModalOpen(true);
+  };
+
+  const handleBaixaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedConta) return;
 
     try {
-      const payload = manualDate.trim() !== '' ? { data: manualDate.trim() } : {};
-      await api.put(`/contas/${conta.id}/${action}`, payload);
+      await api.post(`/contas/${selectedConta.id}/baixas`, baixaFormData);
+      setIsBaixaModalOpen(false);
       fetchContas();
-      if (isModalOpen) setIsModalOpen(false);
-      alert('Operação realizada com sucesso!');
+      alert('Baixa realizada com sucesso!');
     } catch (error) {
-      console.error(`Erro ao processar ${action}`, error);
-      alert(`Erro ao processar ${action}. Verifique a data ou se a conta já foi liquidada.`);
+      console.error('Erro ao realizar baixa', error);
+      alert('Erro ao realizar baixa. Verifique se o valor é maior que o saldo.');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const isReceita = formData.tipo === 'RECEBER' || formData.tipo === 'RECEITA';
-      const dataToSubmit = {
-        ...formData,
-        dataPrevistaRecebimento: isReceita && formData.dataPrevistaRecebimento ? formData.dataPrevistaRecebimento : null
-      };
-
       if (editingId) {
-        await api.put(`/contas/${editingId}`, dataToSubmit);
+        await api.put(`/contas/${editingId}`, formData);
       } else {
-        await api.post('/contas', dataToSubmit);
+        await api.post('/contas', formData);
       }
       setIsModalOpen(false);
       fetchContas();
@@ -151,8 +152,10 @@ const Contas = () => {
   };
 
   const filtered = contas.filter(c => {
-    const matchSearch = c.descricao.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        c.pessoa.toLowerCase().includes(searchTerm.toLowerCase());
+    const desc = c.descricao || '';
+    const pess = c.pessoa || '';
+    const matchSearch = desc.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        pess.toLowerCase().includes(searchTerm.toLowerCase());
     const matchTipo = filterTipo === 'TODOS' || c.tipo === filterTipo;
     return matchSearch && matchTipo;
   });
@@ -160,10 +163,9 @@ const Contas = () => {
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       'PAGO': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300',
-      'RECEBIDO': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300',
+      'PARCIAL': 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300',
       'PENDENTE': 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
-      'VENCIDO': 'bg-red-100 text-red-800 dark:bg-red-600 dark:text-white font-black animate-pulse',
-      'CANCELADO': 'bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-300'
+      'VENCIDO': 'bg-red-100 text-red-800 dark:bg-red-600 dark:text-white font-black animate-pulse'
     };
     return <span className={`px-2 py-1 rounded text-[10px] uppercase tracking-tighter font-bold shadow-sm ${colors[status] || colors['PENDENTE']}`}>{status}</span>;
   };
@@ -196,8 +198,8 @@ const Contas = () => {
             onChange={e => setFilterTipo(e.target.value)}
           >
             <option value="TODOS" className="dark:bg-[#1F2937]">Todos os Tipos</option>
-            <option value="RECEBER" className="dark:bg-[#1F2937]">Receitas</option>
-            <option value="PAGAR" className="dark:bg-[#1F2937]">Despesas</option>
+            <option value="RECEITA" className="dark:bg-[#1F2937]">Receitas</option>
+            <option value="DESPESA" className="dark:bg-[#1F2937]">Despesas</option>
           </select>
         </div>
       </div>
@@ -213,7 +215,8 @@ const Contas = () => {
                   <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Descrição</th>
                   <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Pessoa</th>
                   <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Vencimento</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Valor</th>
+                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 text-right">Total</th>
+                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 text-right">Saldo</th>
                   <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Status</th>
                   <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 text-right">Ações</th>
                 </tr>
@@ -222,30 +225,27 @@ const Contas = () => {
                 {filtered.map(c => (
                   <tr 
                     key={c.id} 
-                    onClick={() => handleOpenModal(c)}
                     className="hover:bg-slate-50 dark:hover:bg-[#F97316]/5 transition-all duration-300 group cursor-pointer"
                   >
-                    <td className="px-6 py-5 text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                       <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full shadow-lg ${ (c.tipo === 'RECEBER' || c.tipo === 'RECEITA') ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-500 shadow-red-500/50'}`}></div>
+                        <div className={`w-3 h-3 rounded-full shadow-lg ${ (c.tipo === 'RECEITA') ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-500 shadow-red-500/50'}`}></div>
                         {c.descricao}
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">{c.pessoa}</td>
-                    <td className="px-6 py-5 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">{c.pessoa}</td>
+                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-[11px] font-bold text-slate-600 dark:text-slate-400">
                       <div className="dark:text-slate-200 font-black">{formatDate(c.dataVencimento)}</div>
-                      {(c.tipo === 'RECEBER' || c.tipo === 'RECEITA') && c.dataPrevistaRecebimento && (
-                        <div className="text-[9px] text-[#F97316] font-black uppercase tracking-tighter mt-1 bg-[#F97316]/10 px-1.5 py-0.5 rounded inline-block">Prev: {formatDate(c.dataPrevistaRecebimento)}</div>
-                      )}
                     </td>
-                    <td className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white tracking-tighter italic">{formatCurrency(c.valor)}</td>
-                    <td className="px-6 py-5">{getStatusBadge(c.status)}</td>
+                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white tracking-tighter italic text-right">{formatCurrency(c.valorTotal)}</td>
+                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-sm font-black text-[#F97316] tracking-tighter italic text-right">{formatCurrency(c.saldoRestante)}</td>
+                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5">{getStatusBadge(c.status)}</td>
                     <td className="px-6 py-5 text-right space-x-1">
-                      {(( (c.tipo === 'PAGAR' || c.tipo === 'DESPESA') && c.status !== 'PAGO') || ( (c.tipo === 'RECEBER' || c.tipo === 'RECEITA') && c.status !== 'RECEBIDO')) && c.status !== 'CANCELADO' && (
+                      {c.status !== 'PAGO' && (
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handlePagarReceberRapido(c); }} 
+                          onClick={(e) => { e.stopPropagation(); handleOpenBaixaModal(c); }} 
                           className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-all transform hover:scale-125 hover:shadow-lg"
-                          title={(c.tipo === 'RECEBER' || c.tipo === 'RECEITA') ? 'Receber agora' : 'Pagar agora'}
+                          title="Realizar Pagamento/Recebimento"
                         >
                           <CheckCircle size={20} strokeWidth={3}/>
                         </button>
@@ -266,7 +266,7 @@ const Contas = () => {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-20 text-center text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] italic">Nenhuma conta encontrada.</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-20 text-center text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] italic">Nenhuma conta encontrada.</td></tr>
                 )}
               </tbody>
             </table>
@@ -274,6 +274,66 @@ const Contas = () => {
         )}
       </div>
 
+      {/* Modal de Baixa */}
+      {isBaixaModalOpen && selectedConta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D1117]/90 backdrop-blur-xl p-4 overflow-y-auto">
+          <div className="glass-card w-full max-w-md p-8 bg-white dark:bg-[#1F2937] border-white/10 border-2 shadow-2xl">
+            <h2 className="text-2xl font-black mb-6 dark:text-white uppercase italic">Realizar Baixa</h2>
+            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-white/5">
+              <p className="text-[10px] font-black text-slate-500 uppercase">Conta</p>
+              <p className="text-lg font-black dark:text-white italic">{selectedConta.descricao}</p>
+              <p className="text-[10px] font-black text-[#F97316] uppercase mt-2">Saldo Restante: {formatCurrency(selectedConta.saldoRestante)}</p>
+            </div>
+            <form onSubmit={handleBaixaSubmit} className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-black mb-2 uppercase tracking-widest text-slate-500">Valor da Baixa</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  required 
+                  className="input-field font-black italic" 
+                  value={baixaFormData.valor} 
+                  onChange={e => setBaixaFormData({...baixaFormData, valor: parseFloat(e.target.value)})}
+                  max={selectedConta.saldoRestante}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black mb-2 uppercase tracking-widest text-slate-500">Data do Pagamento</label>
+                <input 
+                  type="date" 
+                  required 
+                  className="input-field font-black" 
+                  value={baixaFormData.dataPagamento} 
+                  onChange={e => setBaixaFormData({...baixaFormData, dataPagamento: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black mb-2 uppercase tracking-widest text-slate-500">Forma de Pagamento</label>
+                <select 
+                  className="input-field font-black uppercase text-xs" 
+                  value={baixaFormData.formaPagamento} 
+                  onChange={e => setBaixaFormData({...baixaFormData, formaPagamento: e.target.value})}
+                >
+                  <option value="DINHEIRO">Dinheiro</option>
+                  <option value="PIX">PIX</option>
+                  <option value="CHEQUE">Cheque</option>
+                  <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                  <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                  <option value="BOLETO_BANCARIO">Boleto Bancário</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 mt-8">
+                <button type="button" onClick={() => setIsBaixaModalOpen(false)} className="btn-secondary">Cancelar</button>
+                <button type="submit" className="btn-primary flex items-center gap-2">
+                  <CreditCard size={18} /> Confirmar Baixa
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Conta */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D1117]/90 backdrop-blur-xl p-4 overflow-y-auto">
           <div className="glass-card w-full max-w-2xl p-10 bg-white dark:bg-[#1F2937] my-8 border-white/10 border-2 shadow-2xl relative overflow-hidden">
@@ -284,74 +344,47 @@ const Contas = () => {
                 <div>
                   <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Tipo de Fluxo</label>
                   <select required className="input-field font-black uppercase text-xs tracking-widest" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value as any})}>
-                    <option value="RECEBER" className="dark:bg-[#1F2937]">Receita</option>
-                    <option value="PAGAR" className="dark:bg-[#1F2937]">Despesa</option>
+                    <option value="RECEITA" className="dark:bg-[#1F2937]">Receita</option>
+                    <option value="DESPESA" className="dark:bg-[#1F2937]">Despesa</option>
                   </select>
+                </div>
+                {!editingId && (
+                  <div>
+                    <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Parcelamento</label>
+                    <select className="input-field font-black uppercase text-xs tracking-widest" value={formData.quantidadeParcelas} onChange={e => setFormData({...formData, quantidadeParcelas: parseInt(e.target.value)})}>
+                      <option value="1">À Vista</option>
+                      {[2,3,4,5,6,10,12].map(n => <option key={n} value={n}>{n}x Parcelas</option>)}
+                    </select>
+                  </div>
+                )}
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Descrição</label>
+                  <input required type="text" className="input-field font-black italic" placeholder="EX: VENDA DE PRODUTOS" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Status Atual</label>
-                  <select required className="input-field font-black uppercase text-xs tracking-widest" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
-                    <option value="PENDENTE" className="dark:bg-[#1F2937]">Pendente</option>
-                    <option value="PAGO" className="dark:bg-[#1F2937]">Pago</option>
-                    <option value="RECEBIDO" className="dark:bg-[#1F2937]">Recebido</option>
-                    <option value="VENCIDO" className="dark:bg-[#1F2937]">Vencido</option>
-                    <option value="CANCELADO" className="dark:bg-[#1F2937]">Cancelado</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Descrição da Operação</label>
-                  <input required type="text" className="input-field font-bold uppercase text-xs tracking-widest" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} />
+                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Cliente / Fornecedor</label>
+                  <input required type="text" className="input-field font-black" placeholder="NOME DA PESSOA" value={formData.pessoa} onChange={e => setFormData({...formData, pessoa: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Categoria</label>
-                  <input required type="text" className="input-field font-bold uppercase text-xs tracking-widest" value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} />
+                  <input required type="text" className="input-field font-black" placeholder="EX: VENDAS" value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Entidade / Pessoa</label>
-                  <input required type="text" className="input-field font-bold uppercase text-xs tracking-widest" value={formData.pessoa} onChange={e => setFormData({...formData, pessoa: e.target.value})} />
+                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Valor {formData.quantidadeParcelas > 1 ? 'Total' : ''}</label>
+                  <input required type="number" step="0.01" className="input-field font-black italic" value={formData.valorTotal} onChange={e => setFormData({...formData, valorTotal: parseFloat(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Data de Vencimento</label>
-                  <input required type="date" className="input-field dark:[color-scheme:dark] font-black text-xs tracking-widest" value={formData.dataVencimento} onChange={e => setFormData({...formData, dataVencimento: e.target.value})} />
+                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Vencimento {formData.quantidadeParcelas > 1 ? '(1┬¬ Parcela)' : ''}</label>
+                  <input required type="date" className="input-field font-black" value={formData.dataVencimento} onChange={e => setFormData({...formData, dataVencimento: e.target.value})} />
                 </div>
-                {formData.tipo === 'RECEBER' && (
-                  <div>
-                    <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Previsão de Crédito</label>
-                    <input type="date" className="input-field dark:[color-scheme:dark] font-black text-xs tracking-widest border-accentOrange/30" value={formData.dataPrevistaRecebimento} onChange={e => setFormData({...formData, dataPrevistaRecebimento: e.target.value})} />
-                  </div>
-                )}
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Valor Operacional (R$)</label>
-                  <input required type="number" step="0.01" className="input-field font-black text-lg tracking-tighter text-accentOrange italic" value={formData.valor} onChange={e => setFormData({...formData, valor: parseFloat(e.target.value)})} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Forma de Liquidação</label>
-                  <input required type="text" className="input-field font-bold uppercase text-xs tracking-widest" value={formData.formaPagamento} onChange={e => setFormData({...formData, formaPagamento: e.target.value})} />
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Observações</label>
+                  <textarea className="input-field min-h-[100px] font-bold" value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})}></textarea>
                 </div>
               </div>
-              <div className="flex flex-wrap justify-end gap-4 pt-8 border-t border-white/5 mt-10">
-                <button type="button" className="btn-secondary px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => setIsModalOpen(false)}>Fechar</button>
-                {editingId && (
-                  (() => {
-                    const isReceita = formData.tipo === 'RECEBER' || formData.tipo === 'RECEITA';
-                    const isDespesa = formData.tipo === 'PAGAR' || formData.tipo === 'DESPESA';
-                    const canLiquidar = (isDespesa && formData.status !== 'PAGO') || (isReceita && formData.status !== 'RECEBIDO');
-                    
-                    if (canLiquidar && formData.status !== 'CANCELADO') {
-                      return (
-                        <button 
-                          type="button" 
-                          onClick={() => handlePagarReceberRapido({ id: editingId, tipo: formData.tipo, descricao: formData.descricao })}
-                          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg transition-all transform hover:-translate-y-1"
-                        >
-                          {isReceita ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
-                        </button>
-                      );
-                    }
-                    return null;
-                  })()
-                )}
-                <button type="submit" className="btn-primary px-10 font-black uppercase tracking-widest text-[10px] shadow-glow-orange border border-white/20">Salvar Alterações</button>
+              <div className="flex justify-end gap-4 mt-10">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary px-8 font-black uppercase tracking-widest text-[10px]">Cancelar</button>
+                <button type="submit" className="btn-primary px-10 shadow-glow-orange border border-white/20 font-black uppercase tracking-widest text-[10px]">Salvar Conta</button>
               </div>
             </form>
           </div>

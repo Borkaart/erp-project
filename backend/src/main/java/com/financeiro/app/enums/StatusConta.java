@@ -1,5 +1,5 @@
 package com.financeiro.app.enums;
 
 public enum StatusConta {
-    PENDENTE, PAGO, RECEBIDO, VENCIDO, CANCELADO
+    PENDENTE, PARCIAL, PAGO, VENCIDO
 }

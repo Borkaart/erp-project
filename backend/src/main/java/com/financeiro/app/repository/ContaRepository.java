@@ -14,4 +14,5 @@ public interface ContaRepository extends JpaRepository<Conta, Long> {
     List<Conta> findByTipo(TipoConta tipo);
     List<Conta> findByStatus(StatusConta status);
     List<Conta> findByStatusAndDataVencimentoLessThanEqual(StatusConta status, LocalDate data);
+    List<Conta> findByGrupoId(Long grupoId);
 }

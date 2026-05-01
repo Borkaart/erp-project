@@ -12,6 +12,8 @@ interface Resumo {
   previsaoReceber15Dias: number;
   previsaoPagar30Dias: number;
   previsaoReceber30Dias: number;
+  receitaVencida: number;
+  despesaVencida: number;
 }
 
 interface CategoriaResumo {
@@ -86,6 +88,27 @@ const Dashboard = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {(resumo?.receitaVencida || 0) > 0 && (
+          <div className="bg-red-500/10 border-2 border-red-500/20 p-6 rounded-2xl flex items-center justify-between animate-pulse">
+            <div>
+              <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Receitas Vencidas (Atraso)</p>
+              <h3 className="text-2xl font-black text-red-600 dark:text-red-400 italic">{formatCurrency(resumo?.receitaVencida || 0)}</h3>
+            </div>
+            <ArrowUpCircle size={32} className="text-red-500" />
+          </div>
+        )}
+        {(resumo?.despesaVencida || 0) > 0 && (
+          <div className="bg-red-600/20 border-2 border-red-600/30 p-6 rounded-2xl flex items-center justify-between animate-bounce">
+            <div>
+              <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Despesas Vencidas (A Pagar)</p>
+              <h3 className="text-2xl font-black text-red-600 italic">{formatCurrency(resumo?.despesaVencida || 0)}</h3>
+            </div>
+            <ArrowDownCircle size={32} className="text-red-600" />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">

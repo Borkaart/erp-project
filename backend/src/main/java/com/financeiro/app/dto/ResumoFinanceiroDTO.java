@@ -11,6 +11,14 @@ public class ResumoFinanceiroDTO {
     private BigDecimal previsaoReceber30Dias = BigDecimal.ZERO;
     private BigDecimal previsaoPagar15Dias = BigDecimal.ZERO;
     private BigDecimal previsaoPagar30Dias = BigDecimal.ZERO;
+    private BigDecimal receitaVencida = BigDecimal.ZERO;
+    private BigDecimal despesaVencida = BigDecimal.ZERO;
+
+    public BigDecimal getReceitaVencida() { return receitaVencida; }
+    public void setReceitaVencida(BigDecimal receitaVencida) { this.receitaVencida = receitaVencida; }
+
+    public BigDecimal getDespesaVencida() { return despesaVencida; }
+    public void setDespesaVencida(BigDecimal despesaVencida) { this.despesaVencida = despesaVencida; }
 
     public BigDecimal getTotalAPagar() { return totalAPagar; }
     public void setTotalAPagar(BigDecimal totalAPagar) { this.totalAPagar = totalAPagar; }
