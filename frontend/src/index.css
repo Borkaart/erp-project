@@ -4,43 +4,83 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+    @apply bg-background-light text-text-primary-light font-sans antialiased transition-colors duration-200;
   }
 
   .dark body {
-    @apply bg-darkBg text-slate-100;
+    @apply bg-background-dark text-text-primary-dark;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
   }
 }
 
-@layer utilities {
-  .glass {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-sm dark:bg-[#1F2937]/80 dark:border-slate-700/50;
+@layer components {
+  .section-title {
+    @apply text-[13px] font-semibold uppercase tracking-[0.06em] text-text-secondary-light dark:text-text-secondary-dark mb-4;
   }
-  
-  .glass-card {
-    @apply rounded-xl glass shadow-lg transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_15px_rgba(249,115,22,0.4),0_0_30px_rgba(249,115,22,0.2)] hover:border-[#F97316]/50;
+
+  .metric-value {
+    @apply text-[24px] font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark;
+  }
+
+  .label-text {
+    @apply text-[12px] font-normal text-text-primary-light/60 dark:text-text-primary-dark/60;
+  }
+
+  .body-text {
+    @apply text-[14px] leading-[1.6] text-text-primary-light dark:text-text-primary-dark;
+  }
+
+  .card {
+    @apply bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-[14px] p-6 shadow-card transition-all;
+  }
+
+  .sidebar-item {
+    @apply flex items-center h-[40px] px-3 rounded-lg text-[14px] font-medium transition-all cursor-pointer;
+  }
+
+  .sidebar-item-active {
+    @apply bg-accent-light/10 dark:bg-accent-dark/10 text-accent-light dark:text-accent-dark;
+  }
+
+  .sidebar-item-hover {
+    @apply hover:bg-black/5 dark:hover:bg-white/5;
   }
 
   .btn-primary {
-    @apply px-4 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-lg font-semibold 
-           shadow-md transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-[0_0_15px_rgba(249,115,22,0.4),0_0_30px_rgba(249,115,22,0.2)]
-           focus:outline-none focus:ring-2 focus:ring-[#FB923C] focus:ring-offset-2 dark:focus:ring-offset-darkBg;
+    @apply px-4 py-2 bg-accent-light dark:bg-accent-dark text-white rounded-lg font-semibold 
+           transition-all duration-200 transform hover:brightness-110 active:scale-95
+           focus:outline-none focus:ring-2 focus:ring-accent-light/50 dark:focus:ring-accent-dark/50;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-slate-200 text-slate-800 rounded-lg font-medium 
-           hover:bg-slate-300 transition-all duration-300
-           dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600;
+    @apply px-4 py-2 bg-border-light text-text-primary-light rounded-lg font-medium 
+           hover:bg-black/10 transition-all duration-200
+           dark:bg-border-dark dark:text-text-primary-dark dark:hover:bg-white/10;
   }
 
-  .btn-danger {
-    @apply px-4 py-2 bg-red-500 text-white rounded-lg font-medium 
-           hover:bg-red-600 shadow-md transition-all duration-300 transform hover:-translate-y-0.5;
-  }
-  
   .input-field {
-    @apply w-full px-4 py-2 rounded-lg border border-slate-300 bg-white/50 
-           focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent
-           dark:border-slate-600 dark:bg-[#111827]/50 dark:text-white dark:focus:ring-[#FB923C] transition-all;
+    @apply w-full px-4 py-2 rounded-lg border border-border-light bg-white 
+           text-[14px] text-text-primary-light focus:outline-none focus:ring-2 focus:ring-accent-light/20 focus:border-accent-light
+           dark:border-border-dark dark:bg-sidebar-dark dark:text-text-primary-dark dark:focus:ring-accent-dark/20 dark:focus:border-accent-dark transition-all;
   }
+
+  .table-header {
+    @apply px-4 py-3 text-[12px] font-semibold uppercase tracking-wider text-text-secondary-light dark:text-text-secondary-dark border-b border-border-light dark:border-border-dark text-left;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-[14px] text-text-primary-light dark:text-text-primary-dark border-b border-border-light dark:border-border-dark;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

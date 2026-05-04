@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Cliente {
@@ -81,60 +81,66 @@ const Clientes = () => {
   const filtered = clientes.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Clientes</h1>
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <h1 className="section-title mb-0">Gestão de Clientes</h1>
         <button onClick={() => handleOpenModal()} className="btn-primary flex items-center gap-2">
           <Plus size={18} /> Novo Cliente
         </button>
       </div>
 
-      <div className="glass-card p-4 flex items-center gap-2">
-        <Search size={20} className="text-slate-400" />
-        <input 
-          type="text" 
-          placeholder="Buscar clientes..." 
-          className="bg-transparent border-none focus:outline-none w-full text-slate-800 dark:text-white"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="relative group">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark" />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome..." 
+            className="input-field pl-10"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F97316]"></div></div>
+          <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-light dark:border-accent-dark"></div></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 dark:bg-slate-800/80 border-b dark:border-slate-700/50">
-                  <th className="px-6 py-4 font-semibold text-sm text-slate-600 dark:text-slate-300">Nome</th>
-                  <th className="px-6 py-4 font-semibold text-sm text-slate-600 dark:text-slate-300">Documento</th>
-                  <th className="px-6 py-4 font-semibold text-sm text-slate-600 dark:text-slate-300">Email</th>
-                  <th className="px-6 py-4 font-semibold text-sm text-slate-600 dark:text-slate-300">Telefone</th>
-                  <th className="px-6 py-4 font-semibold text-sm text-slate-600 dark:text-slate-300 text-right">Ações</th>
+                <tr>
+                  <th className="table-header">Nome</th>
+                  <th className="table-header">Documento</th>
+                  <th className="table-header">E-mail</th>
+                  <th className="table-header">Telefone</th>
+                  <th className="table-header text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+              <tbody className="divide-y divide-border-light/50 dark:divide-border-dark/50">
                 {filtered.map(c => (
-                  <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 dark:text-slate-200">{c.nome}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{c.documento}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{c.email}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{c.telefone}</td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button onClick={() => handleOpenModal(c)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg">
-                        <Edit2 size={18} />
-                      </button>
-                      <button onClick={() => handleDelete(c.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg">
-                        <Trash2 size={18} />
-                      </button>
+                  <tr key={c.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="table-cell font-medium">{c.nome}</td>
+                    <td className="table-cell text-text-secondary-light dark:text-text-secondary-dark">{c.documento}</td>
+                    <td className="table-cell">{c.email}</td>
+                    <td className="table-cell">{c.telefone}</td>
+                    <td className="table-cell text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleOpenModal(c)} title="Editar" className="p-1.5 text-accent-light dark:text-accent-dark hover:bg-accent-light/10 rounded-lg transition-colors">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(c.id)} title="Excluir" className="p-1.5 text-expense-light dark:text-expense-dark hover:bg-expense-light/10 rounded-lg transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500">Nenhum cliente encontrado.</td>
+                    <td colSpan={5} className="px-6 py-12 text-center text-text-secondary-light dark:text-text-secondary-dark italic text-sm">
+                      Nenhum cliente encontrado.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -144,12 +150,20 @@ const Clientes = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border-white/20 border-2">
-            <h2 className="text-xl font-bold mb-4 dark:text-white">{editingCliente ? 'Editar Cliente' : 'Novo Cliente'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">Nome</label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-card-light dark:bg-card-dark w-full max-w-md p-8 rounded-[14px] shadow-2xl border border-border-light dark:border-border-dark relative">
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-text-secondary-light dark:text-text-secondary-dark hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+            <h2 className="text-[18px] font-bold mb-6 text-text-primary-light dark:text-text-primary-dark">
+              {editingCliente ? 'Editar Cliente' : 'Novo Cliente'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="label-text">Nome Completo</label>
                 <input 
                   type="text" 
                   required 
@@ -158,8 +172,8 @@ const Clientes = () => {
                   onChange={e => setFormData({...formData, nome: e.target.value})}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">Documento (CPF/CNPJ)</label>
+              <div className="space-y-1.5">
+                <label className="label-text">Documento (CPF/CNPJ)</label>
                 <input 
                   type="text" 
                   required 
@@ -168,8 +182,8 @@ const Clientes = () => {
                   onChange={e => setFormData({...formData, documento: e.target.value})}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">Email</label>
+              <div className="space-y-1.5">
+                <label className="label-text">E-mail</label>
                 <input 
                   type="email" 
                   required 
@@ -178,8 +192,8 @@ const Clientes = () => {
                   onChange={e => setFormData({...formData, email: e.target.value})}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-slate-300">Telefone</label>
+              <div className="space-y-1.5">
+                <label className="label-text">Telefone</label>
                 <input 
                   type="text" 
                   className="input-field" 
@@ -187,9 +201,9 @@ const Clientes = () => {
                   onChange={e => setFormData({...formData, telefone: e.target.value})}
                 />
               </div>
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border-light dark:border-border-dark">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancelar</button>
-                <button type="submit" className="btn-primary">Salvar</button>
+                <button type="submit" className="btn-primary">Salvar Cliente</button>
               </div>
             </form>
           </div>

@@ -11,6 +11,7 @@ public class FluxoCaixaResponseDTO {
     private TipoConta tipo;
     private String contaFinanceira;
     private String descricaoConta;
+    private BigDecimal saldoAcumulado;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -29,4 +30,7 @@ public class FluxoCaixaResponseDTO {
 
     public String getDescricaoConta() { return descricaoConta; }
     public void setDescricaoConta(String descricaoConta) { this.descricaoConta = descricaoConta; }
+
+    public BigDecimal getSaldoAcumulado() { return saldoAcumulado; }
+    public void setSaldoAcumulado(BigDecimal saldoAcumulado) { this.saldoAcumulado = saldoAcumulado; }
 }

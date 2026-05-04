@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, Filter, CheckCircle, CreditCard } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Plus, Edit2, Trash2, Search, Filter, CreditCard, X } from 'lucide-react';
 import { api } from '../services/api';
 
 const formatDate = (dateString: string) => {
@@ -30,10 +31,13 @@ interface Conta {
 }
 
 const Contas = () => {
+  const location = useLocation();
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('TODOS');
+  const [filterStatus, setFilterStatus] = useState('TODOS');
+  const [filterVencimento, setFilterVencimento] = useState('TODOS');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBaixaModalOpen, setIsBaixaModalOpen] = useState(false);
@@ -76,6 +80,15 @@ const Contas = () => {
     fetchContas();
   }, []);
 
+  useEffect(() => {
+    if (location.state) {
+      const { tipo, status, vencimento } = location.state;
+      if (tipo) setFilterTipo(tipo);
+      if (status) setFilterStatus(status);
+      if (vencimento) setFilterVencimento(vencimento);
+    }
+  }, [location.state]);
+
   const handleOpenModal = (conta?: Conta) => {
     if (conta) {
       setEditingId(conta.id);
@@ -113,7 +126,6 @@ const Contas = () => {
       await api.post(`/contas/${selectedConta.id}/baixas`, baixaFormData);
       setIsBaixaModalOpen(false);
       fetchContas();
-      alert('Baixa realizada com sucesso!');
     } catch (error) {
       console.error('Erro ao realizar baixa', error);
       alert('Erro ao realizar baixa. Verifique se o valor é maior que o saldo.');
@@ -157,116 +169,158 @@ const Contas = () => {
     const matchSearch = desc.toLowerCase().includes(searchTerm.toLowerCase()) || 
                         pess.toLowerCase().includes(searchTerm.toLowerCase());
     const matchTipo = filterTipo === 'TODOS' || c.tipo === filterTipo;
-    return matchSearch && matchTipo;
+    
+    let matchStatus = true;
+    if (filterStatus === 'PENDENTE') {
+      matchStatus = c.status === 'PENDENTE' || c.status === 'PARCIAL' || c.status === 'VENCIDO';
+    } else if (filterStatus === 'PAGO') {
+      matchStatus = c.status === 'PAGO';
+    } else if (filterStatus !== 'TODOS') {
+      matchStatus = c.status === filterStatus;
+    }
+
+    let matchVencimento = true;
+    if (filterVencimento !== 'TODOS') {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const dataVenc = new Date(c.dataVencimento);
+      dataVenc.setHours(0, 0, 0, 0);
+      
+      const diffTime = dataVenc.getTime() - hoje.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (filterVencimento === '15DIAS') {
+        matchVencimento = diffDays >= 0 && diffDays <= 15;
+      } else if (filterVencimento === '30DIAS') {
+        matchVencimento = diffDays >= 0 && diffDays <= 30;
+      }
+    }
+
+    return matchSearch && matchTipo && matchStatus && matchVencimento;
   });
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      'PAGO': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300',
-      'PARCIAL': 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300',
-      'PENDENTE': 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
-      'VENCIDO': 'bg-red-100 text-red-800 dark:bg-red-600 dark:text-white font-black animate-pulse'
+      'PAGO': 'bg-revenue-light/10 text-revenue-light dark:bg-revenue-dark/10 dark:text-revenue-dark',
+      'PARCIAL': 'bg-accent-light/10 text-accent-light dark:bg-accent-dark/10 dark:text-accent-dark',
+      'PENDENTE': 'bg-text-secondary-light/10 text-text-secondary-light dark:bg-text-secondary-dark/10 dark:text-text-secondary-dark',
+      'VENCIDO': 'bg-expense-light/10 text-expense-light dark:bg-expense-dark/10 dark:text-expense-dark font-semibold'
     };
-    return <span className={`px-2 py-1 rounded text-[10px] uppercase tracking-tighter font-bold shadow-sm ${colors[status] || colors['PENDENTE']}`}>{status}</span>;
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${colors[status] || colors['PENDENTE']}`}>
+        {status}
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-8 animate-fade-in p-2">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight uppercase italic">Contas</h1>
-        <button onClick={() => handleOpenModal()} className="btn-primary flex items-center gap-2 shadow-glow-orange border border-white/20">
-          <Plus size={20} strokeWidth={3} /> <span className="font-black uppercase tracking-widest text-xs">Nova Conta</span>
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <h1 className="section-title mb-0">Gestão de Contas</h1>
+        <button onClick={() => handleOpenModal()} className="btn-primary flex items-center gap-2">
+          <Plus size={18} /> Novo Lançamento
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="glass-card p-5 flex items-center gap-3 flex-1 border-white/5 border-2 transition-all">
-          <Search size={22} className="text-[#F97316]" strokeWidth={3} />
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="relative group">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark" />
           <input 
             type="text" 
-            placeholder="Buscar por descrição ou cliente/fornecedor..." 
-            className="bg-transparent border-none focus:outline-none w-full text-slate-800 dark:text-white font-bold placeholder-slate-500 uppercase text-xs tracking-widest"
+            placeholder="Buscar lançamentos..." 
+            className="input-field pl-10"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="glass-card p-5 flex items-center gap-3 border-white/5 border-2 transition-all">
-          <Filter size={22} className="text-[#F97316]" strokeWidth={3} />
-          <select 
-            className="bg-transparent border-none focus:outline-none text-slate-800 dark:text-white font-black cursor-pointer uppercase text-xs tracking-widest"
-            value={filterTipo}
-            onChange={e => setFilterTipo(e.target.value)}
-          >
-            <option value="TODOS" className="dark:bg-[#1F2937]">Todos os Tipos</option>
-            <option value="RECEITA" className="dark:bg-[#1F2937]">Receitas</option>
-            <option value="DESPESA" className="dark:bg-[#1F2937]">Despesas</option>
-          </select>
+        
+        <select 
+          className="input-field cursor-pointer"
+          value={filterTipo}
+          onChange={e => setFilterTipo(e.target.value)}
+        >
+          <option value="TODOS">Todos os Tipos</option>
+          <option value="RECEITA">Receitas</option>
+          <option value="DESPESA">Despesas</option>
+        </select>
+
+        <select 
+          className="input-field cursor-pointer"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+        >
+          <option value="TODOS">Todos os Status</option>
+          <option value="PENDENTE">Pendente / Parcial</option>
+          <option value="PAGO">Pago</option>
+          <option value="VENCIDO">Vencido</option>
+        </select>
+
+        <div className="flex items-center gap-4">
+          {(filterTipo !== 'TODOS' || filterStatus !== 'TODOS' || filterVencimento !== 'TODOS') && (
+            <button 
+              onClick={() => { setFilterTipo('TODOS'); setFilterStatus('TODOS'); setFilterVencimento('TODOS'); }}
+              className="text-[11px] font-semibold uppercase text-expense-light dark:text-expense-dark hover:brightness-110 flex items-center gap-1"
+            >
+              <X size={14} /> Limpar Filtros
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="glass-card overflow-hidden border-white/5 border-2 transition-all">
+      <div className="card p-0 overflow-hidden">
         {loading ? (
-          <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F97316]"></div></div>
+          <div className="p-12 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-light dark:border-accent-dark"></div></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 dark:bg-[#111827] border-b dark:border-white/5">
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Descrição</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Pessoa</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Vencimento</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 text-right">Total</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 text-right">Saldo</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Status</th>
-                  <th className="px-6 py-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 text-right">Ações</th>
+                <tr>
+                  <th className="table-header">Descrição</th>
+                  <th className="table-header">Pessoa</th>
+                  <th className="table-header">Vencimento</th>
+                  <th className="table-header text-right">Total</th>
+                  <th className="table-header text-right">Saldo</th>
+                  <th className="table-header">Status</th>
+                  <th className="table-header text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+              <tbody className="divide-y divide-border-light/50 dark:divide-border-dark/50">
                 {filtered.map(c => (
-                  <tr 
-                    key={c.id} 
-                    className="hover:bg-slate-50 dark:hover:bg-[#F97316]/5 transition-all duration-300 group cursor-pointer"
-                  >
-                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  <tr key={c.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="table-cell font-medium">
                       <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full shadow-lg ${ (c.tipo === 'RECEITA') ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-500 shadow-red-500/50'}`}></div>
+                        <div className={`w-1.5 h-1.5 rounded-full ${ (c.tipo === 'RECEITA') ? 'bg-revenue-light dark:bg-revenue-dark' : 'bg-expense-light dark:bg-expense-dark'}`}></div>
                         {c.descricao}
                       </div>
                     </td>
-                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">{c.pessoa}</td>
-                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                      <div className="dark:text-slate-200 font-black">{formatDate(c.dataVencimento)}</div>
-                    </td>
-                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white tracking-tighter italic text-right">{formatCurrency(c.valorTotal)}</td>
-                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5 text-sm font-black text-[#F97316] tracking-tighter italic text-right">{formatCurrency(c.saldoRestante)}</td>
-                    <td onClick={() => handleOpenModal(c)} className="px-6 py-5">{getStatusBadge(c.status)}</td>
-                    <td className="px-6 py-5 text-right space-x-1">
-                      {c.status !== 'PAGO' && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleOpenBaixaModal(c); }} 
-                          className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-all transform hover:scale-125 hover:shadow-lg"
-                          title="Realizar Pagamento/Recebimento"
-                        >
-                          <CheckCircle size={20} strokeWidth={3}/>
+                    <td className="table-cell text-text-secondary-light dark:text-text-secondary-dark">{c.pessoa}</td>
+                    <td className="table-cell font-medium">{formatDate(c.dataVencimento)}</td>
+                    <td className="table-cell text-right font-semibold">{formatCurrency(c.valorTotal)}</td>
+                    <td className="table-cell text-right font-semibold text-accent-light dark:text-accent-dark">{formatCurrency(c.saldoRestante)}</td>
+                    <td className="table-cell">{getStatusBadge(c.status)}</td>
+                    <td className="table-cell text-right">
+                      <div className="flex justify-end gap-2">
+                        {c.status !== 'PAGO' && (
+                          <button onClick={() => handleOpenBaixaModal(c)} title="Realizar Baixa" className="p-1.5 text-revenue-light dark:text-revenue-dark hover:bg-revenue-light/10 rounded-lg transition-colors">
+                            <CreditCard size={16} />
+                          </button>
+                        )}
+                        <button onClick={() => handleOpenModal(c)} title="Editar" className="p-1.5 text-accent-light dark:text-accent-dark hover:bg-accent-light/10 rounded-lg transition-colors">
+                          <Edit2 size={16} />
                         </button>
-                      )}
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenModal(c); }} 
-                        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-all transform hover:scale-125"
-                      >
-                        <Edit2 size={18} strokeWidth={3}/>
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} 
-                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-all transform hover:scale-125"
-                      >
-                        <Trash2 size={18} strokeWidth={3}/>
-                      </button>
+                        <button onClick={() => handleDelete(c.id)} title="Excluir" className="p-1.5 text-expense-light dark:text-expense-dark hover:bg-expense-light/10 rounded-lg transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="px-6 py-20 text-center text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] italic">Nenhuma conta encontrada.</td></tr>
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-text-secondary-light dark:text-text-secondary-dark italic text-sm">
+                      Nenhum lançamento encontrado.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -274,117 +328,174 @@ const Contas = () => {
         )}
       </div>
 
-      {/* Modal de Baixa */}
-      {isBaixaModalOpen && selectedConta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D1117]/90 backdrop-blur-xl p-4 overflow-y-auto">
-          <div className="glass-card w-full max-w-md p-8 bg-white dark:bg-[#1F2937] border-white/10 border-2 shadow-2xl">
-            <h2 className="text-2xl font-black mb-6 dark:text-white uppercase italic">Realizar Baixa</h2>
-            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-white/5">
-              <p className="text-[10px] font-black text-slate-500 uppercase">Conta</p>
-              <p className="text-lg font-black dark:text-white italic">{selectedConta.descricao}</p>
-              <p className="text-[10px] font-black text-[#F97316] uppercase mt-2">Saldo Restante: {formatCurrency(selectedConta.saldoRestante)}</p>
-            </div>
-            <form onSubmit={handleBaixaSubmit} className="space-y-6">
-              <div>
-                <label className="block text-[10px] font-black mb-2 uppercase tracking-widest text-slate-500">Valor da Baixa</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  required 
-                  className="input-field font-black italic" 
-                  value={baixaFormData.valor} 
-                  onChange={e => setBaixaFormData({...baixaFormData, valor: parseFloat(e.target.value)})}
-                  max={selectedConta.saldoRestante}
-                />
+      {/* Modal de Lançamento (Novo/Editar) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-card-light dark:bg-card-dark w-full max-w-2xl p-8 rounded-[14px] shadow-2xl border border-border-light dark:border-border-dark relative overflow-y-auto max-h-[90vh]">
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-text-secondary-light dark:text-text-secondary-dark hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+            <h2 className="text-[18px] font-bold mb-6 text-text-primary-light dark:text-text-primary-dark">
+              {editingId ? 'Editar Lançamento' : 'Novo Lançamento'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="label-text">Tipo de Lançamento</label>
+                  <select 
+                    className="input-field" 
+                    value={formData.tipo} 
+                    onChange={e => setFormData({...formData, tipo: e.target.value as 'RECEITA' | 'DESPESA'})}
+                  >
+                    <option value="RECEITA">Receita (Entrada)</option>
+                    <option value="DESPESA">Despesa (Saída)</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-text">Descrição</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="input-field" 
+                    value={formData.descricao} 
+                    onChange={e => setFormData({...formData, descricao: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-text">Categoria</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    value={formData.categoria} 
+                    onChange={e => setFormData({...formData, categoria: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-text">Pessoa (Cliente/Fornecedor)</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    value={formData.pessoa} 
+                    onChange={e => setFormData({...formData, pessoa: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-text">Data de Vencimento</label>
+                  <input 
+                    type="date" 
+                    required 
+                    className="input-field" 
+                    value={formData.dataVencimento} 
+                    onChange={e => setFormData({...formData, dataVencimento: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-text">Valor Total</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    className="input-field" 
+                    value={formData.valorTotal} 
+                    onChange={e => setFormData({...formData, valorTotal: parseFloat(e.target.value)})}
+                  />
+                </div>
+                {!editingId && (
+                  <div className="space-y-1.5">
+                    <label className="label-text">Quantidade de Parcelas</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      className="input-field" 
+                      value={formData.quantidadeParcelas} 
+                      onChange={e => setFormData({...formData, quantidadeParcelas: parseInt(e.target.value)})}
+                    />
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-[10px] font-black mb-2 uppercase tracking-widest text-slate-500">Data do Pagamento</label>
-                <input 
-                  type="date" 
-                  required 
-                  className="input-field font-black" 
-                  value={baixaFormData.dataPagamento} 
-                  onChange={e => setBaixaFormData({...baixaFormData, dataPagamento: e.target.value})}
-                />
+              <div className="space-y-1.5">
+                <label className="label-text">Observações</label>
+                <textarea 
+                  className="input-field min-h-[80px]" 
+                  value={formData.observacoes} 
+                  onChange={e => setFormData({...formData, observacoes: e.target.value})}
+                ></textarea>
               </div>
-              <div>
-                <label className="block text-[10px] font-black mb-2 uppercase tracking-widest text-slate-500">Forma de Pagamento</label>
-                <select 
-                  className="input-field font-black uppercase text-xs" 
-                  value={baixaFormData.formaPagamento} 
-                  onChange={e => setBaixaFormData({...baixaFormData, formaPagamento: e.target.value})}
-                >
-                  <option value="DINHEIRO">Dinheiro</option>
-                  <option value="PIX">PIX</option>
-                  <option value="CHEQUE">Cheque</option>
-                  <option value="CARTAO_CREDITO">Cartão de Crédito</option>
-                  <option value="CARTAO_DEBITO">Cartão de Débito</option>
-                  <option value="BOLETO_BANCARIO">Boleto Bancário</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 mt-8">
-                <button type="button" onClick={() => setIsBaixaModalOpen(false)} className="btn-secondary">Cancelar</button>
-                <button type="submit" className="btn-primary flex items-center gap-2">
-                  <CreditCard size={18} /> Confirmar Baixa
-                </button>
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border-light dark:border-border-dark">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancelar</button>
+                <button type="submit" className="btn-primary">Salvar Lançamento</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modal de Conta */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D1117]/90 backdrop-blur-xl p-4 overflow-y-auto">
-          <div className="glass-card w-full max-w-2xl p-10 bg-white dark:bg-[#1F2937] my-8 border-white/10 border-2 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accentOrange to-transparent opacity-50"></div>
-            <h2 className="text-3xl font-black mb-8 dark:text-white tracking-tighter uppercase italic">{editingId ? 'Editar Conta' : 'Nova Conta'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Tipo de Fluxo</label>
-                  <select required className="input-field font-black uppercase text-xs tracking-widest" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value as any})}>
-                    <option value="RECEITA" className="dark:bg-[#1F2937]">Receita</option>
-                    <option value="DESPESA" className="dark:bg-[#1F2937]">Despesa</option>
-                  </select>
-                </div>
-                {!editingId && (
-                  <div>
-                    <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Parcelamento</label>
-                    <select className="input-field font-black uppercase text-xs tracking-widest" value={formData.quantidadeParcelas} onChange={e => setFormData({...formData, quantidadeParcelas: parseInt(e.target.value)})}>
-                      <option value="1">À Vista</option>
-                      {[2,3,4,5,6,10,12].map(n => <option key={n} value={n}>{n}x Parcelas</option>)}
-                    </select>
-                  </div>
-                )}
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Descrição</label>
-                  <input required type="text" className="input-field font-black italic" placeholder="EX: VENDA DE PRODUTOS" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Cliente / Fornecedor</label>
-                  <input required type="text" className="input-field font-black" placeholder="NOME DA PESSOA" value={formData.pessoa} onChange={e => setFormData({...formData, pessoa: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Categoria</label>
-                  <input required type="text" className="input-field font-black" placeholder="EX: VENDAS" value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Valor {formData.quantidadeParcelas > 1 ? 'Total' : ''}</label>
-                  <input required type="number" step="0.01" className="input-field font-black italic" value={formData.valorTotal} onChange={e => setFormData({...formData, valorTotal: parseFloat(e.target.value)})} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Vencimento {formData.quantidadeParcelas > 1 ? '(1┬¬ Parcela)' : ''}</label>
-                  <input required type="date" className="input-field font-black" value={formData.dataVencimento} onChange={e => setFormData({...formData, dataVencimento: e.target.value})} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black mb-2 uppercase tracking-[0.2em] text-slate-500">Observações</label>
-                  <textarea className="input-field min-h-[100px] font-bold" value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})}></textarea>
+      {/* Modal de Baixa (Pagamento) */}
+      {isBaixaModalOpen && selectedConta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-card-light dark:bg-card-dark w-full max-w-md p-8 rounded-[14px] shadow-2xl border border-border-light dark:border-border-dark relative">
+            <button 
+              onClick={() => setIsBaixaModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-text-secondary-light dark:text-text-secondary-dark hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+            <h2 className="text-[18px] font-bold mb-2 text-text-primary-light dark:text-text-primary-dark">Realizar Baixa</h2>
+            <p className="text-[12px] text-text-secondary-light dark:text-text-secondary-dark mb-6">
+              Registrar pagamento para: <span className="font-bold text-text-primary-light dark:text-text-primary-dark">{selectedConta.descricao}</span>
+            </p>
+            
+            <form onSubmit={handleBaixaSubmit} className="space-y-5">
+              <div className="bg-background-light dark:bg-background-dark p-4 rounded-xl mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="label-text">Saldo Restante</span>
+                  <span className="text-[14px] font-bold text-accent-light dark:text-accent-dark">{formatCurrency(selectedConta.saldoRestante)}</span>
                 </div>
               </div>
-              <div className="flex justify-end gap-4 mt-10">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary px-8 font-black uppercase tracking-widest text-[10px]">Cancelar</button>
-                <button type="submit" className="btn-primary px-10 shadow-glow-orange border border-white/20 font-black uppercase tracking-widest text-[10px]">Salvar Conta</button>
+
+              <div className="space-y-1.5">
+                <label className="label-text">Valor do Pagamento</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  max={selectedConta.saldoRestante}
+                  required 
+                  className="input-field text-revenue-light dark:text-revenue-dark font-bold text-[16px]" 
+                  value={baixaFormData.valor} 
+                  onChange={e => setBaixaFormData({...baixaFormData, valor: parseFloat(e.target.value)})}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="label-text">Data do Pagamento</label>
+                <input 
+                  type="date" 
+                  required 
+                  className="input-field" 
+                  value={baixaFormData.dataPagamento} 
+                  onChange={e => setBaixaFormData({...baixaFormData, dataPagamento: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="label-text">Forma de Pagamento</label>
+                <select 
+                  className="input-field" 
+                  value={baixaFormData.formaPagamento} 
+                  onChange={e => setBaixaFormData({...baixaFormData, formaPagamento: e.target.value})}
+                >
+                  <option value="PIX">PIX</option>
+                  <option value="BOLETO_BANCARIO">Boleto Bancário</option>
+                  <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                  <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                  <option value="DINHEIRO">Dinheiro</option>
+                  <option value="TRANSFERENCIA">Transferência</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border-light dark:border-border-dark">
+                <button type="button" onClick={() => setIsBaixaModalOpen(false)} className="btn-secondary">Cancelar</button>
+                <button type="submit" className="btn-primary bg-revenue-light dark:bg-revenue-dark">Confirmar Baixa</button>
               </div>
             </form>
           </div>

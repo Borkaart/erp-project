@@ -11,4 +11,6 @@ public interface BaixaRepository extends JpaRepository<Baixa, Long> {
     List<Baixa> findByDataPagamentoBetween(LocalDate start, LocalDate end);
     List<Baixa> findByContaFinanceira(ContaFinanceira contaFinanceira);
     List<Baixa> findByDataPagamentoBetweenAndContaFinanceira(LocalDate start, LocalDate end, ContaFinanceira contaFinanceira);
+    List<Baixa> findByDataPagamentoBefore(LocalDate date);
+    List<Baixa> findByDataPagamentoBeforeAndContaFinanceira(LocalDate date, ContaFinanceira contaFinanceira);
 }

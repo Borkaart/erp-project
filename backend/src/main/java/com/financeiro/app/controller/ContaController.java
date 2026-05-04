@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -68,5 +69,36 @@ public class ContaController {
     @GetMapping("/alertas")
     public ResponseEntity<List<ContaResponseDTO>> listarAlertas() {
         return ResponseEntity.ok(service.listarAlertas());
+    }
+
+    @GetMapping("/fluxo-caixa")
+    public ResponseEntity<FluxoCaixaRelatorioDTO> listarFluxoCaixa(
+            @RequestParam LocalDate inicio,
+            @RequestParam LocalDate fim,
+            @RequestParam(required = false) Long contaFinanceiraId) {
+        return ResponseEntity.ok(service.listarFluxoCaixa(inicio, fim, contaFinanceiraId));
+    }
+
+    @GetMapping("/resumo")
+    public ResponseEntity<ResumoFinanceiroDTO> calcularResumo() {
+        return ResponseEntity.ok(service.calcularResumo());
+    }
+
+    @GetMapping("/resumo-categorias")
+    public ResponseEntity<List<CategoriaResumoDTO>> listarResumoPorCategoria() {
+        return ResponseEntity.ok(service.listarResumoPorCategoria());
+    }
+
+    @GetMapping("/saldo-inicial")
+    public ResponseEntity<BigDecimal> buscarSaldoInicial(
+            @RequestParam int mes,
+            @RequestParam int ano) {
+        return ResponseEntity.ok(service.buscarSaldoInicial(mes, ano));
+    }
+
+    @PostMapping("/saldo-inicial")
+    public ResponseEntity<Void> salvarSaldoInicial(@RequestBody SaldoMensalDTO dto) {
+        service.salvarSaldoInicial(dto.getMes(), dto.getAno(), dto.getSaldoInicial());
+        return ResponseEntity.ok().build();
     }
 }

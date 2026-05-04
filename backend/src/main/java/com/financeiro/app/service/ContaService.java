@@ -26,15 +26,18 @@ public class ContaService {
     private final ClienteRepository clienteRepository;
     private final BaixaRepository baixaRepository;
     private final ContaFinanceiraRepository contaFinanceiraRepository;
+    private final SaldoMensalRepository saldoMensalRepository;
 
     public ContaService(ContaRepository repository, 
                         ClienteRepository clienteRepository,
                         BaixaRepository baixaRepository,
-                        ContaFinanceiraRepository contaFinanceiraRepository) {
+                        ContaFinanceiraRepository contaFinanceiraRepository,
+                        SaldoMensalRepository saldoMensalRepository) {
         this.repository = repository;
         this.clienteRepository = clienteRepository;
         this.baixaRepository = baixaRepository;
         this.contaFinanceiraRepository = contaFinanceiraRepository;
+        this.saldoMensalRepository = saldoMensalRepository;
     }
 
     private void atualizarStatusVencido(Conta conta) {
@@ -170,9 +173,26 @@ public class ContaService {
         
         baixaRepository.save(baixa);
 
-        conta.setValorPago(conta.getValorPago().add(dto.getValor()));
+        // Garantir que o saldo não é nulo antes de somar/subtrair
+        BigDecimal saldoFinanceiroAtual = cf.getSaldoAtual() != null ? cf.getSaldoAtual() : BigDecimal.ZERO;
+
+        // Atualizar saldo da conta financeira
+        if (conta.getTipo() == TipoConta.RECEITA) {
+            cf.setSaldoAtual(saldoFinanceiroAtual.add(dto.getValor()));
+        } else {
+            cf.setSaldoAtual(saldoFinanceiroAtual.subtract(dto.getValor()));
+        }
+        contaFinanceiraRepository.save(cf);
+
+        // Garantir que valorPago não é nulo
+        BigDecimal valorPagoAtual = conta.getValorPago() != null ? conta.getValorPago() : BigDecimal.ZERO;
+        conta.setValorPago(valorPagoAtual.add(dto.getValor()));
         
-        if (conta.getSaldoRestante().compareTo(BigDecimal.ZERO) == 0) {
+        // Recalcular saldo e garantir que não é nulo antes de comparar
+        conta.atualizarSaldo();
+        BigDecimal saldoRestante = conta.getSaldoRestante() != null ? conta.getSaldoRestante() : BigDecimal.ZERO;
+
+        if (saldoRestante.compareTo(BigDecimal.ZERO) <= 0) {
             conta.setStatus(StatusConta.PAGO);
         } else {
             conta.setStatus(StatusConta.PARCIAL);
@@ -198,7 +218,7 @@ public class ContaService {
                 .orElseGet(() -> contaFinanceiraRepository.save(new ContaFinanceira(nomeConta)));
     }
 
-    public List<FluxoCaixaResponseDTO> listarFluxoCaixa(LocalDate inicio, LocalDate fim, Long contaFinanceiraId) {
+    public FluxoCaixaRelatorioDTO listarFluxoCaixa(LocalDate inicio, LocalDate fim, Long contaFinanceiraId) {
         List<Baixa> baixas;
         if (contaFinanceiraId != null) {
             ContaFinanceira cf = contaFinanceiraRepository.findById(contaFinanceiraId)
@@ -208,7 +228,22 @@ public class ContaService {
             baixas = baixaRepository.findByDataPagamentoBetween(inicio, fim);
         }
 
-        return baixas.stream().map(b -> {
+        // Ordenar baixas por data para cálculo de saldo acumulado
+        baixas.sort(Comparator.comparing(Baixa::getDataPagamento).thenComparing(Baixa::getId));
+
+        // Calcular Saldo Inicial do Período
+        BigDecimal saldoInicial = buscarOuCalcularSaldoInicial(inicio, contaFinanceiraId);
+        BigDecimal saldoAcumulado = saldoInicial;
+        
+        List<FluxoCaixaResponseDTO> dtos = new ArrayList<>();
+
+        for (Baixa b : baixas) {
+            if (b.getConta().getTipo() == TipoConta.RECEITA) {
+                saldoAcumulado = saldoAcumulado.add(b.getValor());
+            } else {
+                saldoAcumulado = saldoAcumulado.subtract(b.getValor());
+            }
+
             FluxoCaixaResponseDTO dto = new FluxoCaixaResponseDTO();
             dto.setId(b.getId());
             dto.setData(b.getDataPagamento());
@@ -216,8 +251,60 @@ public class ContaService {
             dto.setTipo(b.getConta().getTipo());
             dto.setContaFinanceira(b.getContaFinanceira().getNome());
             dto.setDescricaoConta(b.getConta().getDescricao());
-            return dto;
-        }).collect(Collectors.toList());
+            dto.setSaldoAcumulado(saldoAcumulado);
+            dtos.add(dto);
+        }
+
+        return new FluxoCaixaRelatorioDTO(saldoInicial, saldoAcumulado, dtos);
+    }
+
+    private BigDecimal buscarOuCalcularSaldoInicial(LocalDate data, Long contaFinanceiraId) {
+        // 1. Tentar buscar saldo manual para o mês/ano
+        Optional<SaldoMensal> saldoManual = saldoMensalRepository.findByMesAndAno(data.getMonthValue(), data.getYear());
+        
+        if (saldoManual.isPresent()) {
+            return saldoManual.get().getSaldoInicial();
+        }
+
+        // 2. Se não houver saldo manual, calcular com base no histórico anterior
+        // Buscar todas as baixas anteriores à data de início
+        List<Baixa> baixasAnteriores;
+        if (contaFinanceiraId != null) {
+            ContaFinanceira cf = contaFinanceiraRepository.findById(contaFinanceiraId).orElse(null);
+            baixasAnteriores = baixaRepository.findByDataPagamentoBeforeAndContaFinanceira(data, cf);
+        } else {
+            baixasAnteriores = baixaRepository.findByDataPagamentoBefore(data);
+        }
+
+        BigDecimal saldoCalculado = BigDecimal.ZERO;
+        for (Baixa b : baixasAnteriores) {
+            if (b.getConta().getTipo() == TipoConta.RECEITA) {
+                saldoCalculado = saldoCalculado.add(b.getValor());
+            } else {
+                saldoCalculado = saldoCalculado.subtract(b.getValor());
+            }
+        }
+
+        // Tentar encontrar o saldo manual mais próximo anterior para somar ao calculado
+        // Simplificação: se não tem manual no mês atual, assume que o saldo começou do zero em algum momento
+        // ou usa o último manual disponível e soma as baixas desde então.
+        // Para este ERP, vamos apenas somar as baixas anteriores se não houver manual.
+        
+        return saldoCalculado;
+    }
+
+    @Transactional
+    public void salvarSaldoInicial(int mes, int ano, BigDecimal valor) {
+        SaldoMensal saldo = saldoMensalRepository.findByMesAndAno(mes, ano)
+                .orElse(new SaldoMensal(mes, ano, valor));
+        saldo.setSaldoInicial(valor);
+        saldoMensalRepository.save(saldo);
+    }
+
+    public BigDecimal buscarSaldoInicial(int mes, int ano) {
+        return saldoMensalRepository.findByMesAndAno(mes, ano)
+                .map(SaldoMensal::getSaldoInicial)
+                .orElse(BigDecimal.ZERO);
     }
 
     public ResumoFinanceiroDTO calcularResumo() {
